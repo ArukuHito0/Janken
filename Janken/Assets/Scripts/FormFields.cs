@@ -5,7 +5,7 @@ public static class FormFields
 {
     public static string GetFormURL(string fileName)
     {
-        return "http://localhost/Janken/" + fileName + ".php";
+        return "http://localhost/Janken-Backend/" + fileName + ".php";
     }
 
     public static readonly string roomId = "room_id";
