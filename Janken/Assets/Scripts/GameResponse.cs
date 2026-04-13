@@ -10,5 +10,6 @@ public class GameResponse
     public int p2_select;
     public int p1_score;
     public int p2_score;
+    public int winner;
     public int game_status;
 }

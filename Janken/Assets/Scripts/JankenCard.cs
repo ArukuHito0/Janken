@@ -1,6 +1,4 @@
 using UnityEngine;
-using UnityEngine.Networking;
-using System.Collections;
 using UnityEngine.UI;
 
 public class JankenCard : MonoBehaviour
@@ -15,8 +13,9 @@ public class JankenCard : MonoBehaviour
     private Image handIcon;
 
     [SerializeField]
+    private HandSetButton setButton;
+    [SerializeField]
     private Sprite[] handSprites;
-
     [SerializeField]
     private Hand hand;
 
@@ -32,31 +31,8 @@ public class JankenCard : MonoBehaviour
         handIcon.sprite = handSprites[hand];
     }
 
-    public void OnClickHand()
+    public void OnClickSelect()
     {
-        StartCoroutine(SelectMyHand(1, 1));
-    }
-
-    IEnumerator SelectMyHand(int roomId, int playerNum)
-    {
-        WWWForm form = new WWWForm();
-        form.AddField(FormFields.roomId, roomId);
-        form.AddField(FormFields.playerNum, playerNum);
-        form.AddField(FormFields.selectedHand, (int)hand);
-
-        using (UnityWebRequest www = UnityWebRequest.Post(FormFields.GetFormURL("select_card"), form))
-        {
-            yield return www.SendWebRequest();
-
-            if (www.result == UnityWebRequest.Result.Success)
-            {
-                GameResponse response = JsonUtility.FromJson<GameResponse>(www.downloadHandler.text);
-                Debug.Log("Ç†Ç»ÇΩÇ™èoÇ∑éËÇÕ [" + response.p1_select + "] Ç≈Ç∑");
-            }
-            else
-            {
-                Debug.LogError("í êMÇ…é∏îsÇµÇ‹ÇµÇΩÅB" + www.error);
-            }
-        }
+        setButton.SetHand((int)hand);
     }
 }

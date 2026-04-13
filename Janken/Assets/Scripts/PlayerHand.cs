@@ -5,6 +5,8 @@ public class PlayerHand : MonoBehaviour
 {
     [SerializeField]
     private DeckManager deckManager;
+    [SerializeField]
+    private BattleManager battleManager;
 
     [SerializeField]
     private JankenCard[] myCards;
@@ -14,12 +16,15 @@ public class PlayerHand : MonoBehaviour
 
     public void OnEnable()
     {
-        deckManager.OnCardsChanged += UpdateCards;
+        deckManager.onCardsChanged += UpdateCards;
+        battleManager.onCardsChanged += UpdateCards;
+
     }
 
     public void OnDisable()
     {
-        deckManager.OnCardsChanged -= UpdateCards;
+        deckManager.onCardsChanged -= UpdateCards;
+        battleManager.onCardsChanged -= UpdateCards;
     }
 
     private void UpdateCards(int[] hand, int openCard)

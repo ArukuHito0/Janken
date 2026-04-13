@@ -6,14 +6,14 @@ using UnityEngine.Networking;
 
 public class DeckManager : MonoBehaviour
 {
-    public event Action<int[], int> OnCardsChanged;
+    public event Action<int[], int> onCardsChanged;
 
     public void OnClickDeck()
     {
         StartCoroutine(Deck(1,1));
     }
 
-    IEnumerator Deck(int roomId, int playerNum)
+    private IEnumerator Deck(int roomId, int playerNum)
     {
         WWWForm form = new WWWForm();
         form.AddField(FormFields.roomId, roomId);
@@ -25,10 +25,11 @@ public class DeckManager : MonoBehaviour
 
             if (www.result == UnityWebRequest.Result.Success)
             {
+                Debug.Log("PHPからのレスポンス: " + www.downloadHandler.text);
                 GameResponse response = JsonUtility.FromJson<GameResponse>(www.downloadHandler.text);
                 Debug.Log($"player 1の手札: {response.p1_hand} player2の手札: {response.p2_hand} 公開カード: {response.open_card}");
 
-                OnCardsChanged?.Invoke(playerNum == 1 ? GetHand(response.p1_hand) : GetHand(response.p2_hand), response.open_card);
+                onCardsChanged?.Invoke(playerNum == 1 ? GetHand(response.p1_hand) : GetHand(response.p2_hand), response.open_card);
             }
             else
             {
@@ -37,7 +38,7 @@ public class DeckManager : MonoBehaviour
         }
     }
 
-    public int[] GetHand(string handstr)
+    public static int[] GetHand(string handstr)
     {
         string[] handStrings = handstr.Split(',');
 

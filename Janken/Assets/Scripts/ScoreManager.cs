@@ -1,6 +1,5 @@
 using TMPro;
 using UnityEngine;
-using UnityEngine.Networking;
 
 public class ScoreManager : MonoBehaviour
 {
@@ -8,6 +7,16 @@ public class ScoreManager : MonoBehaviour
     private TextMeshProUGUI p1_scoreText;
     [SerializeField]
     private TextMeshProUGUI p2_scoreText;
+
+    private void OnEnable()
+    {
+        FindObjectOfType<BattleManager>().onScoreChanged += SetScoreText;
+    }
+
+    private void OnDisable()
+    {
+        FindObjectOfType<BattleManager>().onScoreChanged -= SetScoreText;
+    }
 
     private void SetScoreText(int p1_score, int p2_score)
     {
