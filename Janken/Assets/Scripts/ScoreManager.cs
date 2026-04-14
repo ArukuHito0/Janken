@@ -3,6 +3,8 @@ using UnityEngine;
 
 public class ScoreManager : MonoBehaviour
 {
+    public static ScoreManager Instance { get; private set; }
+
     [SerializeField]
     private TextMeshProUGUI p1_scoreText;
     [SerializeField]
@@ -10,15 +12,15 @@ public class ScoreManager : MonoBehaviour
 
     private void OnEnable()
     {
-        FindObjectOfType<BattleManager>().onScoreChanged += SetScoreText;
+        Instance = this;
     }
 
-    private void OnDisable()
+    private void OnDestroy()
     {
-        FindObjectOfType<BattleManager>().onScoreChanged -= SetScoreText;
+        Instance = null;
     }
 
-    private void SetScoreText(int p1_score, int p2_score)
+    public void SetScoreText(int p1_score, int p2_score)
     {
         p1_scoreText.text = $"{p1_score} / 3";
         p2_scoreText.text = $"{p2_score} / 3";

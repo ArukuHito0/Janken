@@ -91,6 +91,7 @@ public class HandSetButton : MonoBehaviour
 
             if (www.result == UnityWebRequest.Result.Success)
             {
+                //Debug.Log("受信したデータ: " + www.downloadHandler.text); // これを追加！
                 GameResponse response = JsonUtility.FromJson<GameResponse>(www.downloadHandler.text);
                 Debug.Log("あなたが出す手は [" + response.p1_select + "] です");
             }

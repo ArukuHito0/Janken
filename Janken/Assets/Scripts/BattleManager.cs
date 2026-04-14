@@ -2,9 +2,13 @@ using System;
 using System.Collections;
 using UnityEngine;
 using UnityEngine.Networking;
+using UnityEngine.UI;
+using static UnityEngine.Audio.ProcessorInstance;
 
 public class BattleManager : MonoBehaviour
 {
+    public static BattleManager Instance { get; private set; }
+
     [SerializeField]
     private ScoreManager scoreManager;
     [SerializeField]
@@ -13,27 +17,65 @@ public class BattleManager : MonoBehaviour
     private HandSetButton enemySelectedHand;
 
     public event Action<int[], int> onCardsChanged;
-    public event Action<int, int> onScoreChanged;
 
+    private void OnEnable()
+    {
+        Instance = this;
+    }
+
+    private void OnDestroy()
+    {
+        Instance = null;
+    }
+
+    public void LockSetButton()
+    {
+        playerSelectedHand.GetComponent<Button>().enabled = false;
+    }
+
+    // じゃんけん
+    public void Battle(GameResponse response)
+    {
+        enemySelectedHand.SetHand(response.p2_select);  // デバッグ用にplayer2の手を表示
+                                                        // ※本番では対戦相手の手を表示する
+    }
+
+    // 盤面をリフレッシュ
+    public void Refresh(GameResponse response, int playerNum)
+    {
+        playerSelectedHand.ResetHand();
+        enemySelectedHand.ResetHand();
+
+        var hand = playerNum == 1 ? response.p1_hand : response.p2_hand;
+
+        onCardsChanged?.Invoke(DeckManager.GetHand(hand), response.open_card);
+    }
+
+    /// <summary>
+    /// デバッグ用関数
+    /// </summary>
     public void OnClickBattle()
     {
-        StartCoroutine(Battle());
+        StartCoroutine(CallBattleAPI(1));
     }
 
     public void OnClickRefresh()
     {
-        StartCoroutine(Refresh());
+        StartCoroutine(CallRefleshAPI(1,1));
     }
 
     public void OnClickResetRoom()
     {
-        StartCoroutine(ResetRoom());
+        StartCoroutine(CallResetAPI(1));
     }
 
-    IEnumerator Battle()
+    /// <summary>
+    /// phpファイルを叩くコルーチン
+    /// </summary>
+    IEnumerator CallBattleAPI(int roomId)
     {
         WWWForm form = new WWWForm();
-        form.AddField(FormFields.roomId, 1);
+        form.AddField(FormFields.roomId, roomId);
 
         using (UnityWebRequest www = UnityWebRequest.Post(FormFields.GetFormURL("battle"), form))
         {
@@ -51,8 +93,6 @@ public class BattleManager : MonoBehaviour
                     Debug.Log($"あいこ");
                 else
                     Debug.Log($"勝者: player {response.winner}");
-
-                onScoreChanged?.Invoke(response.p1_score, response.p2_score);
             }
             else
             {
@@ -61,11 +101,11 @@ public class BattleManager : MonoBehaviour
         }
     }
 
-    IEnumerator Refresh()
+    IEnumerator CallRefleshAPI(int roomId, int playerNum)
     {
         WWWForm form = new WWWForm();
-        form.AddField(FormFields.roomId, 1);
-        form.AddField(FormFields.playerNum, 1);
+        form.AddField(FormFields.roomId, roomId);
+        form.AddField(FormFields.playerNum, playerNum);
 
         using (UnityWebRequest www = UnityWebRequest.Post(FormFields.GetFormURL("refresh"), form))
         {
@@ -79,7 +119,6 @@ public class BattleManager : MonoBehaviour
                 enemySelectedHand.ResetHand();
 
                 onCardsChanged?.Invoke(DeckManager.GetHand(response.p1_hand), response.open_card);
-                onScoreChanged?.Invoke(response.p1_score, response.p2_score);
             }
             else
             {
@@ -88,10 +127,10 @@ public class BattleManager : MonoBehaviour
         }
     }
 
-    IEnumerator ResetRoom()
+    IEnumerator CallResetAPI(int roomId)
     {
         WWWForm form = new WWWForm();
-        form.AddField(FormFields.roomId, 1);
+        form.AddField(FormFields.roomId, roomId);
 
         using (UnityWebRequest www = UnityWebRequest.Post(FormFields.GetFormURL("reset"), form))
         {
@@ -104,7 +143,7 @@ public class BattleManager : MonoBehaviour
                 playerSelectedHand.ResetHand();
                 enemySelectedHand.ResetHand();
 
-                onScoreChanged?.Invoke(response.p1_score, response.p2_score);
+                onCardsChanged?.Invoke(DeckManager.GetHand(response.p1_hand), response.open_card);
             }
             else
             {
