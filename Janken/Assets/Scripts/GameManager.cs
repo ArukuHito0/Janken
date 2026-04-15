@@ -1,8 +1,9 @@
 using System;
 using System.Collections;
-using Unity.VisualScripting;
+using TMPro;
 using UnityEngine;
 using UnityEngine.Networking;
+using static UnityEngine.Audio.ProcessorInstance;
 
 public enum GameState
 {
@@ -18,7 +19,21 @@ public class GameManager : MonoBehaviour
 {
     private GameState currentState;
 
+    [SerializeField]
+    private Canvas jankenUI;
+    [SerializeField]
+    private Canvas matchUI;
+    [SerializeField]
+    private TextMeshProUGUI myPlayerStatusText;
+    [SerializeField]
+    private TextMeshProUGUI enemyPlayerStatusText;
+
     public void OnClickGameLoop()
+    {
+        StartCoroutine(GameObserverLoop());
+    }
+
+    private void Start()
     {
         StartCoroutine(GameObserverLoop());
     }
@@ -31,6 +46,8 @@ public class GameManager : MonoBehaviour
             form.AddField(FormFields.roomId, RoomMatchManager.roomId);
             form.AddField(FormFields.playerNum, RoomMatchManager.playerNum);
 
+            // game_statusを取得し、ステートに応じて処理を行う
+            // ※PHP側でゲームの進行処理は行うので、Unity側では表示や演出などの処理のみを行う
             using (UnityWebRequest www = UnityWebRequest.Post(FormFields.GetFormURL("game_status_observer"), form))
             {
                 yield return www.SendWebRequest();
@@ -40,11 +57,15 @@ public class GameManager : MonoBehaviour
                     //Debug.Log("受信したデータ: " + www.downloadHandler.text); // これを追加！
                     GameResponse response = JsonUtility.FromJson<GameResponse>(www.downloadHandler.text);
 
-                    if(Enum.TryParse(response.game_status, true, out GameState nextState))
+                    // 各プレイヤーが手をセットしたかどうかのテキストUIを更新
+                    SetPlayersStatusText(response, RoomMatchManager.playerNum);
+
+                    if (Enum.TryParse(response.game_status, true, out GameState nextState))
                     {
                         if (currentState != nextState)
                         {
                             Debug.Log(response.game_status);
+
                             GameState previousState = currentState;
                             currentState = nextState;
 
@@ -60,31 +81,73 @@ public class GameManager : MonoBehaviour
     {
         switch (nextState)
         {
-            case GameState.waiting:
-                break;
             case GameState.ready:
-                PlayerHand.Instance.EnableCards();
-                ScoreManager.Instance.SetScoreText(response.p1_score, response.p2_score);
-                BattleManager.Instance.Refresh(response, RoomMatchManager.playerNum);
+                ScoreManager.Instance.SetScoreText(RoomMatchManager.playerNum, response.p1_score, response.p2_score);
+
                 break;
             case GameState.selecting:
+                PlayerHand.Instance.EnableCards();
+                BattleManager.Instance.Refresh(response, RoomMatchManager.playerNum);
                 DeckManager.Instance.Deal(response, RoomMatchManager.playerNum);
+
                 break;
             case GameState.battle:
-                yield return new WaitForSeconds(2.0f);
-
                 PlayerHand.Instance.DisableCards();
                 BattleManager.Instance.LockSetButton();
-                BattleManager.Instance.Battle(response);
+
+                yield return BattleManager.Instance.Battle(response, RoomMatchManager.playerNum);
+
                 break;
             case GameState.result:
-                yield return new WaitForSeconds(2.0f);
-                ScoreManager.Instance.SetScoreText(response.p1_score, response.p2_score);
+                ScoreManager.Instance.SetScoreText(RoomMatchManager.playerNum, response.p1_score, response.p2_score);
+                BattleManager.Instance.Result(response, RoomMatchManager.playerNum);
+
+                if (response.p1_score < 3 && response.p2_score < 3)
+                    yield return BattleManager.Instance.NextBattleCountDown();
+                else
+                    yield return new WaitForSeconds(1.0f);
+
                 break;
             case GameState.end:
+                PlayerHand.Instance.DisableCards();
+                BattleManager.Instance.LockSetButton();
+                BattleManager.Instance.Battle(response, RoomMatchManager.playerNum);
+                ScoreManager.Instance.SetScoreText(RoomMatchManager.playerNum, response.p1_score, response.p2_score);
+
+                jankenUI.GetComponent<Animator>().SetTrigger("EndJanken");
+                yield return new WaitForSeconds(0.75f);
+                matchUI.GetComponent<Animator>().SetTrigger("SlideUp");
+
                 break;
             default:
                 break;
+        }
+    }
+
+    private void SetPlayersStatusText(GameResponse response, int playerNum)
+    {
+        // 自分のプレイヤー番号と同じ数字の選択した手を格納しているカラムに応じて状態の表示を変更
+        if (playerNum == 1)
+        {
+            if (response.p1_select != 4)
+                myPlayerStatusText.text = "set";
+            else
+                myPlayerStatusText.text = "think";
+            if (response.p2_select != 4)
+                enemyPlayerStatusText.text = "set";
+            else
+                enemyPlayerStatusText.text = "think";
+        }
+        else
+        {
+            if (response.p2_select != 4)
+                myPlayerStatusText.text = "set";
+            else
+                myPlayerStatusText.text = "think";
+            if (response.p1_select != 4)
+                enemyPlayerStatusText.text = "set";
+            else
+                enemyPlayerStatusText.text = "think";
         }
     }
 }

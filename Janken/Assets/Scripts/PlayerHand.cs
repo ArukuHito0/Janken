@@ -38,7 +38,7 @@ public class PlayerHand : MonoBehaviour
     {
         for (int i = 0; i < myCards.Length; i++)
         {
-            myCards[i].GetComponent<Button>().enabled = true;
+            myCards[i].GetComponent<Button>().interactable = true;
         }
     }
 
@@ -46,7 +46,7 @@ public class PlayerHand : MonoBehaviour
     {
         for (int i = 0; i < myCards.Length; i++)
         {
-            myCards[i].GetComponent<Button>().enabled = false;
+            myCards[i].GetComponent<Button>().interactable = false;
         }
     }
 

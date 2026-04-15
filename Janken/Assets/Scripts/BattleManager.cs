@@ -1,5 +1,7 @@
 using System;
 using System.Collections;
+using TMPro;
+using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.Networking;
 using UnityEngine.UI;
@@ -15,6 +17,12 @@ public class BattleManager : MonoBehaviour
     private HandSetButton playerSelectedHand;
     [SerializeField]
     private HandSetButton enemySelectedHand;
+    [SerializeField]
+    private TextMeshProUGUI jankenText;
+    [SerializeField]
+    private TextMeshProUGUI resultText;
+    [SerializeField]
+    private TextMeshProUGUI countDownText;
 
     public event Action<int[], int> onCardsChanged;
 
@@ -30,19 +38,30 @@ public class BattleManager : MonoBehaviour
 
     public void LockSetButton()
     {
-        playerSelectedHand.GetComponent<Button>().enabled = false;
+        if(playerSelectedHand.TryGetComponent<UnityEngine.UI.Button>(out var button))
+        {
+            button.interactable = false;
+        }
     }
 
     // じゃんけん
-    public void Battle(GameResponse response)
+    public IEnumerator Battle(GameResponse response, int playerNum)
     {
-        enemySelectedHand.SetHand(response.p2_select);  // デバッグ用にplayer2の手を表示
-                                                        // ※本番では対戦相手の手を表示する
+        jankenText.text = "jan";
+        yield return new WaitForSeconds(1f);
+        jankenText.text = "ken";
+        yield return new WaitForSeconds(1f);
+        jankenText.text = "pon!!";
+
+        enemySelectedHand.SetHand(playerNum == 1 ? response.p2_select :  response.p1_select);
     }
 
     // 盤面をリフレッシュ
     public void Refresh(GameResponse response, int playerNum)
     {
+        jankenText.text = "vs";
+        resultText.text = "janken";
+
         playerSelectedHand.ResetHand();
         enemySelectedHand.ResetHand();
 
@@ -50,7 +69,41 @@ public class BattleManager : MonoBehaviour
 
         onCardsChanged?.Invoke(DeckManager.GetHand(hand), response.open_card);
     }
+    
+    // 勝者表示
+    public void Result(GameResponse response, int playerNum)
+    {
+        if (response.winner != -1)
+        {
+            if (response.winner == playerNum)
+            {
+                resultText.text = "YOU WIN !!";
+            }
+            else
+            {
+                resultText.text = "YOU LOSE...";
+            }
+        }
+        else
+        {
+            resultText.text = "DRAW";
+        }
+    }
 
+    // 次のバトルへのカウントダウン
+    public IEnumerator NextBattleCountDown()
+    {
+        countDownText.enabled = true;
+        countDownText.text = "Next JANKEN -> 3 seconds ago";
+        yield return new WaitForSeconds(1);
+        countDownText.text = "Next JANKEN -> 2 seconds ago";
+        yield return new WaitForSeconds(1);
+        countDownText.text = "Next JANKEN -> 1 seconds ago";
+        yield return new WaitForSeconds(1);
+        countDownText.enabled = false;
+    }
+
+    #region デバッグ用関数群
     /// <summary>
     /// デバッグ用関数
     /// </summary>
@@ -151,4 +204,5 @@ public class BattleManager : MonoBehaviour
             }
         }
     }
+    #endregion
 }

@@ -6,9 +6,9 @@ public class ScoreManager : MonoBehaviour
     public static ScoreManager Instance { get; private set; }
 
     [SerializeField]
-    private TextMeshProUGUI p1_scoreText;
+    private TextMeshProUGUI myScoreText;
     [SerializeField]
-    private TextMeshProUGUI p2_scoreText;
+    private TextMeshProUGUI enemyScoreText;
 
     private void OnEnable()
     {
@@ -20,9 +20,17 @@ public class ScoreManager : MonoBehaviour
         Instance = null;
     }
 
-    public void SetScoreText(int p1_score, int p2_score)
+    public void SetScoreText(int playerNum, int p1_score, int p2_score)
     {
-        p1_scoreText.text = $"{p1_score} / 3";
-        p2_scoreText.text = $"{p2_score} / 3";
+        if (playerNum == 1)
+        {
+            myScoreText.text = $"{p1_score} / 3";
+            enemyScoreText.text = $"{p2_score} / 3";
+        }
+        else
+        {
+            myScoreText.text = $"{p2_score} / 3";
+            enemyScoreText.text = $"{p1_score} / 3";
+        }
     }
 }

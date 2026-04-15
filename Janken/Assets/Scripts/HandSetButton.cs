@@ -41,7 +41,7 @@ public class HandSetButton : MonoBehaviour
         handIcon.enabled = false;
 
         if(setButton != null)
-            setButton.enabled = false;
+            setButton.interactable = false;
     }
 
     public void SetHand(int hand)
@@ -55,7 +55,7 @@ public class HandSetButton : MonoBehaviour
         handIcon.enabled = true;
 
         if (setButton != null)
-            setButton.enabled = true;
+            setButton.interactable = true;
     }
 
     public void ResetHand()
@@ -68,14 +68,14 @@ public class HandSetButton : MonoBehaviour
         handIcon.enabled = false;
 
         if (setButton != null)
-            setButton.enabled = false;
+            setButton.interactable = false;
     }
 
     public void OnClickSet()
     {
         if (!isSet) return;
 
-        StartCoroutine(SetMyHand(1, 1));
+        StartCoroutine(SetMyHand(RoomMatchManager.roomId, RoomMatchManager.playerNum));
     }
 
     private IEnumerator SetMyHand(int roomId, int playerNum)
@@ -91,9 +91,7 @@ public class HandSetButton : MonoBehaviour
 
             if (www.result == UnityWebRequest.Result.Success)
             {
-                //Debug.Log("受信したデータ: " + www.downloadHandler.text); // これを追加！
-                GameResponse response = JsonUtility.FromJson<GameResponse>(www.downloadHandler.text);
-                Debug.Log("あなたが出す手は [" + response.p1_select + "] です");
+                PlayerHand.Instance.DisableCards();
             }
             else
             {
