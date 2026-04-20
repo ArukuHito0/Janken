@@ -12,5 +12,5 @@ public static class FormFields
     public static readonly string userId = "user_id";
     public static readonly string playerNum = "player_num";
     public static readonly string selectedHand = "selected_hand";
-    public static readonly string playerReady = "player_ready";
+    public static readonly string playerStatus = "status";
 }
