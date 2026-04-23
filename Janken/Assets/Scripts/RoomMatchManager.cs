@@ -26,20 +26,23 @@ public class RoomMatchManager : MonoBehaviour
     [SerializeField]
     private Canvas matchingUI;
     [SerializeField]
-    private TextMeshProUGUI playerNumText;
-    [SerializeField]
     private TextMeshProUGUI waitingText;
     [SerializeField]
     private TextMeshProUGUI userIdText;
 
+    private bool isTransitioning = false;
+    private Coroutine waitCoroutine;
+
+    private void Start()
+    {
+        userId = GetOrCreateUserId();
+
+        userIdText.text = $"UserID: {userId}";
+    }
+
     public void OnClickPlay()
     {
         StartCoroutine(Matching());
-    }
-
-    public void OnClickRemain()
-    {
-        StartCoroutine(Remain());
     }
 
     public void OnClickRematch()
@@ -49,12 +52,7 @@ public class RoomMatchManager : MonoBehaviour
 
     public void OnClickLeave()
     {
-        StartCoroutine(LeaveRoom());
-    }
-
-    public void OnSetUserId(string userId)
-    {
-        RoomMatchManager.userId = userId;
+        StartCoroutine(ReturnToTitle());
     }
 
     // ルームに参加もしくはルーム作成
@@ -75,10 +73,14 @@ public class RoomMatchManager : MonoBehaviour
                 roomId = response.room_id;
                 playerNum = response.player_num;
 
-                titleUI.enabled = false;
-                matchingUI.enabled = true;
+                if(titleUI != null) titleUI.enabled = false;
+                if (matchingUI != null) matchingUI.enabled = true;
 
-                StartCoroutine(WaitOtherPlayer());
+                if (waitCoroutine != null)
+                {
+                    StopCoroutine(waitCoroutine);
+                }
+                waitCoroutine = StartCoroutine(WaitOtherPlayer());
 
                 Debug.Log($"プレイヤー番号: {playerNum}");
                 Debug.Log($"ルームID: {roomId}");
@@ -90,113 +92,130 @@ public class RoomMatchManager : MonoBehaviour
     // ルーム退出
     private IEnumerator LeaveRoom()
     {
-        WWWForm form = new WWWForm();
-        form.AddField(FormFields.roomId, roomId);
-        form.AddField(FormFields.userId, userId);
-
-        using (UnityWebRequest www = UnityWebRequest.Post(FormFields.GetFormURL("disconnect"), form))
+        bool success = false;
+        while (!success)
         {
-            yield return www.SendWebRequest();
-            if (www.result == UnityWebRequest.Result.Success)
+            WWWForm form = new WWWForm();
+            form.AddField(FormFields.roomId, roomId);
+            form.AddField(FormFields.userId, userId);
+
+            using (UnityWebRequest www = UnityWebRequest.Post(FormFields.GetFormURL("disconnect"), form))
             {
-                SceneManager.LoadScene("TitleScene");
+                yield return www.SendWebRequest();
+                if (www.result == UnityWebRequest.Result.Success)
+                {
+                    success = true;
+                    RoomMatchManager.roomId = -1;
+                    yield break;
+                }
             }
-            else
-            {
-                StartCoroutine(LeaveRoom());
-            }
+            yield return null;
         }
-
-        yield break;
-    }
-
-    // 別のルームを探す
-    private IEnumerator Remain()
-    {
-        yield return LeaveRoom();
-        StartCoroutine(WaitOtherPlayer());
         yield break;
     }
 
     // 再戦を希望
     private IEnumerator Rematch()
     {
-        WWWForm form = new WWWForm();
-        form.AddField(FormFields.roomId, RoomMatchManager.roomId);
-        form.AddField(FormFields.playerNum, RoomMatchManager.playerNum);
-
-        using (UnityWebRequest www = UnityWebRequest.Post(FormFields.GetFormURL("rematch"), form))
+        bool success = false;
+        while (!success)
         {
-            yield return www.SendWebRequest();
-
-            if (www.result != UnityWebRequest.Result.Success)
-            {
-                StartCoroutine(Rematch());
-            }
-        }
-    }
-
-    // 待機
-    private IEnumerator WaitOtherPlayer()
-    {
-        while (true)
-        {
-            // game_status_observerに送信する為のフォーム
             WWWForm form = new WWWForm();
-            form.AddField(FormFields.roomId, roomId);
-            form.AddField(FormFields.playerNum, playerNum);
+            form.AddField(FormFields.roomId, RoomMatchManager.roomId);
+            form.AddField(FormFields.playerNum, RoomMatchManager.playerNum);
 
-            // ゲームの状態を監視するAPIを叩く
-            using (UnityWebRequest www = UnityWebRequest.Post(FormFields.GetFormURL("game_status_observer"), form))
+            using (UnityWebRequest www = UnityWebRequest.Post(FormFields.GetFormURL("rematch"), form))
             {
                 yield return www.SendWebRequest();
 
                 if (www.result == UnityWebRequest.Result.Success)
                 {
-                    GameResponse _response = JsonUtility.FromJson<GameResponse>(www.downloadHandler.text);
+                    success = true;
+                    yield break;
+                }
+            }
+            yield return null;
+        }        
+    }
 
-                    if (Enum.TryParse(_response.game_status, true, out GameState nextState))
+    // 待機
+    private IEnumerator WaitOtherPlayer()
+    {
+        while (!isTransitioning)
+        {
+            if (roomId != -1)
+            {
+                // game_status_observerに送信する為のフォーム
+                WWWForm form = new WWWForm();
+                form.AddField(FormFields.roomId, roomId);
+                form.AddField(FormFields.playerNum, playerNum);
+
+                // ゲームの状態を監視するAPIを叩く
+                using (UnityWebRequest www = UnityWebRequest.Post(FormFields.GetFormURL("game_status_observer"), form))
+                {
+                    yield return www.SendWebRequest();
+
+                    if (www.result == UnityWebRequest.Result.Success)
                     {
-                        if (currentState != nextState)
-                        {
-                            GameState previousState = currentState;
-                            currentState = nextState;
+                        GameResponse _response = JsonUtility.FromJson<GameResponse>(www.downloadHandler.text);
 
-                            yield return OnStateChanged(_response, previousState, nextState);
+                        if (Enum.TryParse(_response.game_status, true, out GameState nextState))
+                        {
+                            if (currentState != nextState)
+                            {
+                                GameState previousState = currentState;
+                                currentState = nextState;
+
+                                yield return OnPlayerMatched(_response, previousState, nextState);
+                            }
                         }
                     }
                 }
             }
+            yield return null;
         }
     }
 
-    private IEnumerator OnStateChanged(GameResponse response, GameState previousState, GameState nextState)
+    // タイトルにもどる
+    private IEnumerator ReturnToTitle()
     {
-        if (nextState == GameState.waiting)
+        yield return LeaveRoom();
+
+        SceneManager.LoadScene("TitleScene");
+    }
+
+    // マッチ成功
+    private IEnumerator OnPlayerMatched(GameResponse response, GameState previousState, GameState nextState)
+    {
+        if (previousState == GameState.waiting && nextState != GameState.waiting)
         {
-            playerNumText.text = $"Room ID is {roomId}\nYour Player Number is {playerNum} !";
-        }
-        else
-        {
+            isTransitioning = true;
             waitingText.text = "Matched!!";
-            yield return new WaitForSeconds(1f);
+            yield return new WaitForSeconds(1.0f);
             SceneManager.LoadScene("MainScene");
+            yield break;
         }
     }
 
     private string GetOrCreateUserId()
     {
-        string saveId = PlayerPrefs.GetString("SaveUserId", "");
+        string saveId = PlayerPrefs.GetString("UserID", "");
 
         if (string.IsNullOrEmpty(saveId))
         {
-            saveId = Guid.NewGuid().ToString();
+            saveId = UnityEngine.Random.Range(1000, 9999).ToString() + 
+                "-" + UnityEngine.Random.Range(1000, 9999).ToString() + 
+                "-" + UnityEngine.Random.Range(1000, 9999).ToString();
 
-            PlayerPrefs.SetString("SaveUserId", saveId);
+            PlayerPrefs.SetString("UserID", saveId);
             PlayerPrefs.Save();
         }
-                
+
         return saveId;
     }
 
+    private void OnDestroy()
+    {
+        StopAllCoroutines();
+    }
 }

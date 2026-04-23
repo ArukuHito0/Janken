@@ -75,6 +75,7 @@ public class HandSetButton : MonoBehaviour
     {
         if (!isSet) return;
 
+        setButton.interactable = false;
         StartCoroutine(SetMyHand(RoomMatchManager.roomId, RoomMatchManager.playerNum));
     }
 

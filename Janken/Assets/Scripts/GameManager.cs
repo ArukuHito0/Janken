@@ -3,8 +3,6 @@ using System.Collections;
 using TMPro;
 using UnityEngine;
 using UnityEngine.Networking;
-using UnityEngine.SceneManagement;
-using static UnityEngine.Audio.ProcessorInstance;
 
 public enum GameState
 {
@@ -24,10 +22,6 @@ public class GameManager : MonoBehaviour
     private Canvas jankenUI;
     [SerializeField]
     private Canvas matchUI;
-    [SerializeField]
-    private Canvas waitingUI;
-    [SerializeField]
-    private TextMeshProUGUI waitingText;
     [SerializeField]
     private TextMeshProUGUI myPlayerStatusText;
     [SerializeField]
@@ -59,7 +53,7 @@ public class GameManager : MonoBehaviour
 
                 if (www.result == UnityWebRequest.Result.Success)
                 {
-                    //Debug.Log("受信したデータ: " + www.downloadHandler.text); // これを追加！
+                    //Debug.Log("受信したデータ: " + www.downloadHandler.text);
                     GameResponse response = JsonUtility.FromJson<GameResponse>(www.downloadHandler.text);
 
                     // 各プレイヤーが手をセットしたかどうかのテキストUIを更新
@@ -74,11 +68,13 @@ public class GameManager : MonoBehaviour
                             GameState previousState = currentState;
                             currentState = nextState;
 
-                           yield return OnStateChanged(response, previousState, nextState);
+                            yield return OnStateChanged(response, previousState, nextState);
                         }
                     }
                 }
             }
+
+            yield return null;
         }
     }
 
@@ -86,26 +82,7 @@ public class GameManager : MonoBehaviour
     {
         switch (nextState)
         {
-            case GameState.waiting:
-                waitingText.text = "Waiting for other player....";
-                jankenUI.enabled = false;
-                matchUI.enabled = false;
-                waitingUI.enabled = true;
-                break;
             case GameState.ready:
-                if(previousState == GameState.waiting)
-                {
-                    waitingText.text = "Matched!!";
-                    yield return new WaitForSeconds(1f);
-                    SceneManager.LoadScene("MainScene");
-                    yield break;
-                }
-                if(previousState == GameState.end)
-                {
-                    SceneManager.LoadScene("MainScene");
-                    yield break;
-                }
-                waitingUI.enabled = false;
                 ScoreManager.Instance.SetScoreText(RoomMatchManager.playerNum, response.p1_score, response.p2_score);
 
                 break;
@@ -173,5 +150,10 @@ public class GameManager : MonoBehaviour
             else
                 enemyPlayerStatusText.text = "think";
         }
+    }
+
+    private void OnDestroy()
+    {
+        StopAllCoroutines();
     }
 }
